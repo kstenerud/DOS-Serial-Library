@@ -23,34 +23,34 @@
 #define SERIAL__HEADER
 
 /* COM Ports */
-#define COM_1							0
-#define COM_2							1
-#define COM_3							2
-#define COM_4							3
+#define COM_1                           0
+#define COM_2                           1
+#define COM_3                           2
+#define COM_4                           3
 
 /* Handshaking Modes */
-#define SER_HANDSHAKING_NONE			0
-#define SER_HANDSHAKING_XONXOFF			1
-#define SER_HANDSHAKING_RTSCTS			2
-#define SER_HANDSHAKING_DTRDSR			3
+#define SER_HANDSHAKING_NONE            0
+#define SER_HANDSHAKING_XONXOFF         1
+#define SER_HANDSHAKING_RTSCTS          2
+#define SER_HANDSHAKING_DTRDSR          3
 
 /* Error Codes */
-#define SER_SUCCESS						0	/* Function completed successfully */
-#define SER_ERR_UNKNOWN					-1	/* An unknown error occured */
-#define SER_ERR_NOT_OPEN				-2	/* The specified COM port is not opened */
-#define SER_ERR_ALREADY_OPEN			-3	/* The specified COM port is already opened */
-#define SER_ERR_NO_UART					-4	/* Could not find a UART for this COM port */
-#define SER_ERR_INVALID_COMPORT			-5	/* User specified an invalid COM port */
-#define SER_ERR_INVALID_BASE			-6	/* User specified an invalid base address */
-#define SER_ERR_INVALID_IRQ				-7	/* User specified an invalid IRQ number */
-#define SER_ERR_INVALID_BPS				-8	/* User specified an invalid BPS rate */
-#define SER_ERR_INVALID_DATA_BITS		-9	/* User specified an invalid number of data bits */
-#define SER_ERR_INVALID_PARITY			-10	/* User specified an invalid parity type */
-#define SER_ERR_INVALID_STOP_BITS		-11	/* User specified an invalid number of stop bits */
-#define SER_ERR_INVALID_HANDSHAKING		-12	/* User specified an invalid handshaking type */
-#define SER_ERR_INVALID_FIFO_THRESHOLD	-13	/* User specified an invalid fifo threshold value */
-#define SER_ERR_NULL_PTR				-14	/* User specified a buffer address that was NULL */
-#define SER_ERR_IRQ_NOT_FOUND			-15	/* Could not find an IRQ for the specified COM port */
+#define SER_SUCCESS                     0   /* Function completed successfully */
+#define SER_ERR_UNKNOWN                 -1  /* An unknown error occured */
+#define SER_ERR_NOT_OPEN                -2  /* The specified COM port is not opened */
+#define SER_ERR_ALREADY_OPEN            -3  /* The specified COM port is already opened */
+#define SER_ERR_NO_UART                 -4  /* Could not find a UART for this COM port */
+#define SER_ERR_INVALID_COMPORT         -5  /* User specified an invalid COM port */
+#define SER_ERR_INVALID_BASE            -6  /* User specified an invalid base address */
+#define SER_ERR_INVALID_IRQ             -7  /* User specified an invalid IRQ number */
+#define SER_ERR_INVALID_BPS             -8  /* User specified an invalid BPS rate */
+#define SER_ERR_INVALID_DATA_BITS       -9  /* User specified an invalid number of data bits */
+#define SER_ERR_INVALID_PARITY          -10 /* User specified an invalid parity type */
+#define SER_ERR_INVALID_STOP_BITS       -11 /* User specified an invalid number of stop bits */
+#define SER_ERR_INVALID_HANDSHAKING     -12 /* User specified an invalid handshaking type */
+#define SER_ERR_INVALID_FIFO_THRESHOLD  -13 /* User specified an invalid fifo threshold value */
+#define SER_ERR_NULL_PTR                -14 /* User specified a buffer address that was NULL */
+#define SER_ERR_IRQ_NOT_FOUND           -15 /* Could not find an IRQ for the specified COM port */
 
 
 /* Name:   serial_open()
