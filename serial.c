@@ -682,6 +682,7 @@ int serial_read(int comport, char* data, int len)
     if(data == 0)
         return SER_ERR_NULL_PTR;
 
+    CPU_DISABLE_INTERRUPTS();
     /* Fill in the array given to us */
     for(i=0;!SER_RX_BUFFER_EMPTY(com) && i < len;i++)
         data[i] = SER_RX_BUFFER_READ(com);
@@ -697,6 +698,7 @@ int serial_read(int comport, char* data, int len)
         else if(com->flow_mode == SER_HANDSHAKING_DTRDSR)
             UART_WRITE_MODEM_CONTROL(com, UART_READ_MODEM_CONTROL(com) | UART_MCR_DTR);
     }
+    CPU_ENABLE_INTERRUPTS();
 
     return i;
 }
@@ -741,6 +743,7 @@ int serial_write_buffered(int comport, const char* data, int len)
     if(data == 0)
         return SER_ERR_NULL_PTR;
 
+    CPU_DISABLE_INTERRUPTS();
     for(i=0;i < len ;i++)
     {
         /* stop when sent buffer is full */
@@ -753,6 +756,7 @@ int serial_write_buffered(int comport, const char* data, int len)
     /* If there's data to send, enable TX_HOLD_EMPTY interrupt */
     if(!SER_TX_BUFFER_EMPTY(com))
         UART_WRITE_INTERRUPT_ENABLE(com, UART_READ_INTERRUPT_ENABLE(com) | UART_IER_TX_HOLD_EMPTY);
+    CPU_ENABLE_INTERRUPTS();
 
     return i;
 }
