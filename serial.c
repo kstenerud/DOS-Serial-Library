@@ -478,7 +478,9 @@ static void Interrupt com_general_isr(void)
         if(com->open)
             PIC_ENABLE_IRQ(com->irq);
 
-    /* Returning from the service routine will re-enable CPU interrupts */
+    /* We must explicitely call 'sti' before 'iret' because 'iret'
+       won't always restore interrupts in a virtual environment */
+    CPU_ENABLE_INTERRUPTS();
 }
 
 
