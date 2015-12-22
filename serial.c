@@ -30,6 +30,9 @@
 #define CPU_DISABLE_INTERRUPTS()    asm CLI
 #define CPU_ENABLE_INTERRUPTS()     asm STI
 #endif /* _MSC_VER */
+#if defined( __386__ ) || defined( __DJGPP__ )
+#define PROTECTED_MODE
+#endif
 
 /* ======================================================================== */
 /* =========================== DEFINES & MACROS =========================== */
@@ -325,10 +328,18 @@ typedef struct
 } serial_struct;
 
 
-typedef  void (Interrupt *int_handler_ptr)();
-
+#if defined( __DJGPP__ )
+typedef _go32_dpmi_seginfo int_handler_ptr;
+static _go32_dpmi_seginfo g_old_isrs[16];
+#else
+typedef void Interrupt Far (*int_handler_ptr)(void);
 static int_handler_ptr g_old_isrs[16];
+#endif
 static unsigned char   g_isrs_taken[16] = {0};
+#ifdef PROTECTED_MODE
+static int_handler_ptr g_isr_addr;
+static unsigned int    g_isrs_count = 0;
+#endif
 
 
 /* serial port data */
@@ -477,6 +488,235 @@ static void Interrupt com_general_isr(void)
 /* ======================================================================== */
 
 
+#ifdef PROTECTED_MODE
+
+/* we do not know the exact size of com_general_isr() function
+   but for sure it's not longer then 2048 bytes */
+#define ISR_SIZE        2048
+
+#if defined( __DJGPP__ )
+
+static void serial_dpmi_get_pvect(int vector, _go32_dpmi_seginfo *info)
+{
+    _go32_dpmi_get_protected_mode_interrupt_vector(vector, info);
+}
+
+static void serial_dpmi_set_pvect(int vector, _go32_dpmi_seginfo *info)
+{
+    _go32_dpmi_set_protected_mode_interrupt_vector(vector, info);
+}
+
+static int serial_dpmi_lock_memory(void)
+{
+    unsigned long dataaddr, codeaddr;
+    __dpmi_meminfo dataregion, coderegion;
+
+    if(__dpmi_get_segment_base_address(_my_cs(), &codeaddr) == 0 &&
+       __dpmi_get_segment_base_address(_my_ds(), &dataaddr) == 0)
+    {
+        coderegion.handle = 0;
+        coderegion.size = ISR_SIZE;
+        coderegion.address = codeaddr + (unsigned long)com_general_isr;
+        dataregion.handle = 0;
+        dataregion.size = sizeof(g_comports);
+        dataregion.address = codeaddr + (unsigned long)g_comports;
+        if(__dpmi_lock_linear_region(&coderegion) == 0)
+        {
+            if(__dpmi_lock_linear_region(&dataregion) == 0)
+            {
+                g_isr_addr.pm_offset = (unsigned long)com_general_isr;
+                g_isr_addr.pm_selector = _go32_my_cs();
+                if(_go32_dpmi_allocate_iret_wrapper(&g_isr_addr) == 0)
+                    return 1;
+                __dpmi_unlock_linear_region(&dataregion);
+            }
+            __dpmi_unlock_linear_region(&coderegion);
+        }
+    }
+    return 0;
+}
+
+static void serial_dpmi_unlock_memory(void)
+{
+    unsigned long baseaddr;
+    __dpmi_meminfo region;
+
+    if(__dpmi_get_segment_base_address(_my_ds(), &baseaddr) == 0)
+    {
+        region.handle = 0;
+        region.size = sizeof(g_comports);
+        region.address = baseaddr + (unsigned long)g_comports;
+        __dpmi_unlock_linear_region(&region);
+    }
+    if(__dpmi_get_segment_base_address(_my_cs(), &baseaddr) == 0)
+    {
+        region.handle = 0;
+        region.size = ISR_SIZE;
+        region.address = baseaddr + (unsigned long)com_general_isr;
+        __dpmi_unlock_linear_region(&region);
+    }
+    _go32_dpmi_free_iret_wrapper(&g_isr_addr);
+}
+
+#else /* ! __DJGPP__ */
+
+static void serial_dpmi_get_pvect(int vect, int_handler_ptr *handler)
+{
+    union REGS r;
+    unsigned short sel;
+    unsigned long off;
+
+    /* DPMI get protected mode interrupt vector: Int 31H, Fn 0204H */
+    r.x.eax = 0x0204;
+    r.x.ebx = vect;
+    int386(0x31, &r, &r);
+    sel = (unsigned short) r.x.ecx;
+    off = r.x.edx;
+
+    *handler=(int_handler_ptr) MK_FP(sel, off);
+}
+
+static void serial_dpmi_set_pvect(int vect, int_handler_ptr *handler)
+{
+    union REGS r;
+    void Far *ptr;
+
+    /* DPMI set protected mode interrupt vector: Int 31H, Fn 0205H */
+    ptr = (void Far *)*handler;
+    r.x.eax = 0x0205;
+    r.x.ebx = vect;
+    r.x.ecx = FP_SEG(ptr);
+    r.x.edx = FP_OFF(ptr);
+    int386(0x31, &r, &r);
+}
+
+static int serial_dpmi_lock_linear_memory(void Far *ptr, unsigned long size)
+{
+    union REGS r;
+
+    /* DPMI get segment base address: Int 31H, Fn 0006H */
+    r.x.eax = 0x0006;
+    r.x.ebx = FP_SEG(ptr);
+    int386(0x31, &r, &r);
+    if(r.w.cflag == 0)
+    {
+        unsigned long addr = FP_OFF( ptr ) + ((r.w.cx << 16) | r.w.dx);
+
+        /* DPMI lock linear region: Int 31H, Fn 0600H */
+        r.x.eax = 0x0600;
+        r.x.ebx = addr >> 16;
+        r.x.ecx = addr & 0xFFFF;
+        r.x.esi = size >> 16;
+        r.x.edi = size & 0xFFFF;
+        int386(0x31, &r, &r);
+        if(r.w.cflag == 0)
+        {
+            g_isr_addr = com_general_isr;
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static void serial_dpmi_unlock_linear_memory(void Far *ptr, unsigned long size)
+{
+    union REGS r;
+
+    /* DPMI get segment base address: Int 31H, Fn 0006H */
+    r.x.eax = 0x0006;
+    r.x.ebx = FP_SEG(ptr);
+    int386(0x31, &r, &r);
+    if(r.w.cflag == 0)
+    {
+        unsigned long addr = FP_OFF( ptr ) + ((r.w.cx << 16) | r.w.dx);
+
+        /* DPMI unlock linear region: Int 31H, Fn 0601H */
+        r.x.eax = 0x0601;
+        r.x.ebx = addr >> 16;
+        r.x.ecx = addr & 0xFFFF;
+        r.x.esi = size >> 16;
+        r.x.edi = size & 0xFFFF;
+        int386(0x31, &r, &r);
+    }
+    int386 (0x31, &r, &r);
+}
+
+static int serial_dpmi_lock_memory(void)
+{
+    if(serial_dpmi_lock_linear_memory(com_general_isr, ISR_SIZE))
+    {
+        if(serial_dpmi_lock_linear_memory(g_comports, sizeof(g_comports)))
+            return 1;
+        serial_dpmi_unlock_linear_memory(com_general_isr, ISR_SIZE);
+    }
+    return 0;
+}
+
+static void serial_dpmi_unlock_memory(void)
+{
+    serial_dpmi_unlock_linear_memory(com_general_isr, ISR_SIZE);
+    serial_dpmi_unlock_linear_memory(g_comports, sizeof(g_comports));
+}
+
+#endif /* ! __DJGPP__ */
+
+static int serial_install_irqhandler(int irq)
+{
+    /* If we haven't taken this IRQ's ISR already, take it */
+    if(!g_isrs_taken[irq])
+    {
+        if( g_isrs_count++ == 0 )
+        {
+            /* lock memory used by interrupt handler in DPMI mode */
+            if(!serial_dpmi_lock_memory())
+            {
+                --g_isrs_count;
+                return SER_ERR_LOCK_MEM;
+            }
+        }
+        serial_dpmi_get_pvect(irq+INTERRUPT_VECTOR_OFFSET, &g_old_isrs[irq]);
+        serial_dpmi_set_pvect(irq+INTERRUPT_VECTOR_OFFSET, &g_isr_addr);
+        g_isrs_taken[irq] = 1;
+    }
+    return SER_SUCCESS;
+}
+
+static void serial_remove_irqhandler(int irq)
+{
+    if(g_isrs_taken[irq])
+    {
+        serial_dpmi_set_pvect(irq+INTERRUPT_VECTOR_OFFSET, &g_old_isrs[irq]);
+        g_isrs_taken[irq] = 0;
+
+        if( --g_isrs_count == 0 )
+            /* unlock memory used by interrupt handler in DPMI mode */
+            serial_dpmi_unlock_memory();
+    }
+}
+
+#else /* ! PROTECTED_MODE */
+
+static int serial_install_irqhandler(int irq)
+{
+    /* If we haven't taken this IRQ's ISR already, take it */
+    if(!g_isrs_taken[irq])
+    {
+        g_old_isrs[irq] = _dos_getvect(irq+INTERRUPT_VECTOR_OFFSET);
+        _dos_setvect(irq+INTERRUPT_VECTOR_OFFSET, com_general_isr);
+        g_isrs_taken[irq] = 1;
+    }
+    return SER_SUCCESS;
+}
+
+static void serial_remove_irqhandler(int irq)
+{
+    _dos_setvect(irq+INTERRUPT_VECTOR_OFFSET, g_old_isrs[irq]);
+    g_isrs_taken[irq] = 0;
+}
+
+#endif /* ! PROTECTED_MODE */
+
+
 static int serial_find_irq(int comport)
 {
     serial_struct* com = (serial_struct*)(g_comports + comport);
@@ -600,15 +840,13 @@ static void serial_free_irq(int comport)
 
     CPU_ENABLE_INTERRUPTS();
 
-
     for(ptr=com_min;ptr<=com_max;ptr++)
         if(ptr != com && ptr->irq == irq)
             return;
 
     /* Disable interrupts from the PIC and restore the old vector */
     PIC_DISABLE_IRQ(irq);
-    _dos_setvect(irq+INTERRUPT_VECTOR_OFFSET, g_old_isrs[irq]);
-    g_isrs_taken[irq] = 0;
+    serial_remove_irqhandler(irq);
 }
 
 
@@ -819,6 +1057,7 @@ int serial_set_base(int comport, int base)
 int serial_set_irq(int comport, int irq)
 {
     serial_struct* com = (serial_struct*)(g_comports + comport);
+    int rc;
 
     if(comport < COM_MIN || comport > COM_MAX)
         return SER_ERR_INVALID_COMPORT;
@@ -830,19 +1069,12 @@ int serial_set_irq(int comport, int irq)
     /* Remove any ISRs on this com port's current IRQ */
     serial_free_irq(comport);
 
-    /* If we haven't taken this IRQ's ISR already, take it */
-    if(!g_isrs_taken[irq])
+    if((rc=serial_install_irqhandler(irq)) == SER_SUCCESS)
     {
-        g_old_isrs[irq] = _dos_getvect(irq+INTERRUPT_VECTOR_OFFSET);
-        _dos_setvect(irq+INTERRUPT_VECTOR_OFFSET, com_general_isr);
-        g_isrs_taken[irq] = 1;
+       com->irq = irq;
+       PIC_ENABLE_IRQ(com->irq);
     }
-
-    com->irq = irq;
-
-    PIC_ENABLE_IRQ(com->irq);
-
-    return SER_SUCCESS;
+    return rc;
 }
 
 int serial_set_fifo_threshold(int comport, int threshold)

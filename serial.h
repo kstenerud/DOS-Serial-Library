@@ -51,6 +51,7 @@
 #define SER_ERR_INVALID_FIFO_THRESHOLD  -13 /* User specified an invalid fifo threshold value */
 #define SER_ERR_NULL_PTR                -14 /* User specified a buffer address that was NULL */
 #define SER_ERR_IRQ_NOT_FOUND           -15 /* Could not find an IRQ for the specified COM port */
+#define SER_ERR_LOCK_MEM                -16 /* Could not lock memory in DPMI mode */
 
 
 /* Name:   serial_open()
