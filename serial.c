@@ -782,7 +782,7 @@ int serial_set_base(int comport, int base)
 
     if(comport < COM_MIN || comport > COM_MAX)
         return SER_ERR_INVALID_COMPORT;
-    if(base <= 0 || base > 0xfff)
+    if(base < 1 || base > 0xfff)
         return SER_ERR_INVALID_BASE;
 
     com->base = base;
@@ -1069,7 +1069,7 @@ int serial_get_base(int comport)
 
     if(comport < COM_MIN || comport > COM_MAX)
         return SER_ERR_INVALID_COMPORT;
-    if(com->base <= 0 || com->base > 0xfff)
+    if(com->base < 1 || com->base > 0xfff)
         return SER_ERR_INVALID_BASE;
 
     return com->base;
@@ -1081,7 +1081,7 @@ int serial_get_irq(int comport)
 
     if(comport < COM_MIN || comport > COM_MAX)
         return SER_ERR_INVALID_COMPORT;
-    if(com->irq < 3 || com->irq > 15)
+    if(com->irq < IRQ_MIN || com->irq > IRQ_MAX)
         return SER_ERR_INVALID_IRQ;
 
     return com->irq;
