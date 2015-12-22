@@ -233,6 +233,7 @@ static unsigned char PIC_READ_IRR(unsigned int port){PIC_WRITE_OCW3(port, PIC_RR
 #define UART_MCR_OUT1               0x04
 #define UART_MCR_RTS                0x02
 #define UART_MCR_DTR                0x01
+#define UART_MCR_MASK               ( UART_MCR_DTR | UART_MCR_RTS | UART_MCR_OUT1 | UART_MCR_OUT2 | UART_MCR_LOOPBACK )
 
 
 /* Line Status Register Components */
@@ -1066,6 +1067,21 @@ int serial_set_dtr(int comport, int dtr)
 }
 
 
+int serial_set_mcr(int comport, int mcr)
+{
+    serial_struct* com = (serial_struct*)(g_comports + comport);
+
+    if(comport < COM_MIN || comport > COM_MAX)
+        return SER_ERR_INVALID_COMPORT;
+    if(!com->open)
+        return SER_ERR_NOT_OPEN;
+
+    UART_WRITE_MODEM_CONTROL(com, mcr & UART_MCR_MASK );
+
+    return SER_SUCCESS;
+}
+
+
 
 int serial_get_base(int comport)
 {
@@ -1244,6 +1260,17 @@ int serial_get_dtr(int comport)
 }
 
 
+int serial_get_mcr(int comport)
+{
+    serial_struct* com = (serial_struct*)(g_comports + comport);
+
+    if(comport < COM_MIN || comport > COM_MAX)
+        return SER_ERR_INVALID_COMPORT;
+
+    return com->mcr;
+}
+
+
 int serial_get_dsr(int comport)
 {
     serial_struct* com = (serial_struct*)(g_comports + comport);
@@ -1266,3 +1293,94 @@ int serial_get_cts(int comport)
 }
 
 
+int serial_get_msr(int comport)
+{
+    serial_struct* com = (serial_struct*)(g_comports + comport);
+
+    if(comport < COM_MIN || comport > COM_MAX)
+        return SER_ERR_INVALID_COMPORT;
+
+    return com->msr;
+}
+
+
+int serial_get_lsr(int comport)
+{
+    serial_struct* com = (serial_struct*)(g_comports + comport);
+
+    if(comport < COM_MIN || comport > COM_MAX)
+        return SER_ERR_INVALID_COMPORT;
+
+    return com->lsr;
+}
+
+
+
+int serial_get_tx_buffered(int comport)
+{
+    serial_struct* com = (serial_struct*)(g_comports + comport);
+    int count;
+
+    if(comport < COM_MIN || comport > COM_MAX)
+        return SER_ERR_INVALID_COMPORT;
+    if(!com->open)
+        return SER_ERR_NOT_OPEN;
+
+    CPU_DISABLE_INTERRUPTS();
+    count = SER_TX_BUFFER_CURRENT(com);
+    CPU_ENABLE_INTERRUPTS();
+
+    return count;
+}
+
+
+int serial_get_rx_buffered(int comport)
+{
+    serial_struct* com = (serial_struct*)(g_comports + comport);
+    int count;
+
+    if(comport < COM_MIN || comport > COM_MAX)
+        return SER_ERR_INVALID_COMPORT;
+    if(!com->open)
+        return SER_ERR_NOT_OPEN;
+
+    CPU_DISABLE_INTERRUPTS();
+    count = SER_TX_BUFFER_CURRENT(com);
+    CPU_ENABLE_INTERRUPTS();
+
+    return count;
+}
+
+
+int serial_clear_tx_buffer(int comport)
+{
+    serial_struct* com = (serial_struct*)(g_comports + comport);
+
+    if(comport < COM_MIN || comport > COM_MAX)
+        return SER_ERR_INVALID_COMPORT;
+    if(!com->open)
+        return SER_ERR_NOT_OPEN;
+
+    CPU_DISABLE_INTERRUPTS();
+    SER_TX_BUFFER_INIT(com);
+    CPU_ENABLE_INTERRUPTS();
+
+    return SER_SUCCESS;
+}
+
+
+int serial_clear_rx_buffer(int comport)
+{
+    serial_struct* com = (serial_struct*)(g_comports + comport);
+
+    if(comport < COM_MIN || comport > COM_MAX)
+        return SER_ERR_INVALID_COMPORT;
+    if(!com->open)
+        return SER_ERR_NOT_OPEN;
+
+    CPU_DISABLE_INTERRUPTS();
+    SER_RX_BUFFER_INIT(com);
+    CPU_ENABLE_INTERRUPTS();
+
+    return SER_SUCCESS;
+}
