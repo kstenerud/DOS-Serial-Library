@@ -2,16 +2,31 @@
 #include <dos.h>
 #include "serial.h"
 
-#if defined( _MSC_VER ) || defined( __WATCOMC__ )
+#if defined( __DJGPP__ )
+#include <sys/farptr.h>
+#include <go32.h>
+#include <dpmi.h>
+#define Interrupt
+#define Far
+#define Farpeekw(s, o)              _farpeekw((s),(o))
+#define _Outp(a,b)                  (outp(a,b),(b))
+#define _Outpw(a,w)                 (outpw(a,w),(w))
+#define CPU_DISABLE_INTERRUPTS()    asm("CLI")
+#define CPU_ENABLE_INTERRUPTS()     asm("STI")
+#elif defined( _MSC_VER ) || defined( __WATCOMC__ )
 #define Interrupt                   __interrupt
 #define Far                         __far
 #define Farpeekw(s, o)              (*((unsigned short Far*)(MK_FP((s), (o)))))
+#define _Outp(a,b)                  outp(a,b)
+#define _Outpw(a,w)                 outpw(a,w)
 #define CPU_DISABLE_INTERRUPTS()    __asm CLI
 #define CPU_ENABLE_INTERRUPTS()     __asm STI
 #else /* __BORLANDC__ */
 #define Interrupt                   interrupt
 #define Far                         far
 #define Farpeekw(s, o)              (*((unsigned short Far*)(MK_FP((s), (o)))))
+#define _Outp(a,b)                  outp(a,b)
+#define _Outpw(a,w)                 outpw(a,w)
 #define CPU_DISABLE_INTERRUPTS()    asm CLI
 #define CPU_ENABLE_INTERRUPTS()     asm STI
 #endif /* _MSC_VER */
@@ -145,19 +160,19 @@ static unsigned char PIC_READ_IRR(unsigned int port){PIC_WRITE_OCW3(port, PIC_RR
 #define UART_READ_MODEM_CONTROL(C)  inp((C)->base+UART_MODEM_CONTROL)
 #define UART_READ_LINE_STATUS(C)    ((C)->lsr = inp((C)->base+UART_LINE_STATUS))
 #define UART_READ_MODEM_STATUS(C)   ((C)->msr = inp((C)->base+UART_MODEM_STATUS))
-#define UART_READ_BPS(C)            ((outp((C)->base+UART_LINE_CONTROL, inp((C)->base+UART_LINE_CONTROL) | UART_LCR_DIVISOR_LATCH) & 0) |   \
+#define UART_READ_BPS(C)            ((_Outp((C)->base+UART_LINE_CONTROL, inp((C)->base+UART_LINE_CONTROL) | UART_LCR_DIVISOR_LATCH) & 0) |   \
                                     inpw((C)->base+UART_DIVISOR_LATCH_WORD)                                                     |   \
-                                    (outp((C)->base+UART_LINE_CONTROL, inp((C)->base+UART_LINE_CONTROL) & ~UART_LCR_DIVISOR_LATCH) & 0))
+                                    (_Outp((C)->base+UART_LINE_CONTROL, inp((C)->base+UART_LINE_CONTROL) & ~UART_LCR_DIVISOR_LATCH) & 0))
 
 
 /* UART Write Commands (B = UART Base Address <int>, D = Data <char>) */
 #define UART_WRITE_DATA(C, D)       outp((C)->base+UART_TX_BUFFER, D)
-#define UART_WRITE_INTERRUPT_ENABLE(C, D) ((C)->ier = outp((C)->base+UART_INTERRUPT_ENABLE, D))
-#define UART_WRITE_FIFO_CONTROL(C, D)   ((C)->fcr = outp((C)->base+UART_FIFO_CONTROL, D))
-#define UART_WRITE_LINE_CONTROL(C, D)   ((C)->lcr = outp((C)->base+UART_LINE_CONTROL, D))
-#define UART_WRITE_MODEM_CONTROL(C, D)  ((C)->mcr = outp((C)->base+UART_MODEM_CONTROL, D))
+#define UART_WRITE_INTERRUPT_ENABLE(C, D) ((C)->ier = _Outp((C)->base+UART_INTERRUPT_ENABLE, D))
+#define UART_WRITE_FIFO_CONTROL(C, D)   ((C)->fcr = _Outp((C)->base+UART_FIFO_CONTROL, D))
+#define UART_WRITE_LINE_CONTROL(C, D)   ((C)->lcr = _Outp((C)->base+UART_LINE_CONTROL, D))
+#define UART_WRITE_MODEM_CONTROL(C, D)  ((C)->mcr = _Outp((C)->base+UART_MODEM_CONTROL, D))
 #define UART_WRITE_BPS(C, D)        {outp((C)->base+UART_LINE_CONTROL, inp((C)->base+UART_LINE_CONTROL) | UART_LCR_DIVISOR_LATCH);  \
-                                     (C)->dlatch = outpw((C)->base+UART_DIVISOR_LATCH_WORD, D);                                     \
+                                     (C)->dlatch = _Outpw((C)->base+UART_DIVISOR_LATCH_WORD, D);                                     \
                                      outp((C)->base+UART_LINE_CONTROL, inp((C)->base+UART_LINE_CONTROL) & ~UART_LCR_DIVISOR_LATCH);}
 
 
@@ -319,10 +334,17 @@ static unsigned char   g_isrs_taken[16] = {0};
 /* serial port data */
 static serial_struct g_comports[COM_MAX+1] =
 {
+#if defined( __GNUC__ )
+    {port: 0, default_irq: COM1_DEFAULT_IRQ, irq: IRQ_NONE},
+    {port: 1, default_irq: COM2_DEFAULT_IRQ, irq: IRQ_NONE},
+    {port: 2, default_irq: COM3_DEFAULT_IRQ, irq: IRQ_NONE},
+    {port: 3, default_irq: COM4_DEFAULT_IRQ, irq: IRQ_NONE}
+#else
     {0, COM1_DEFAULT_IRQ, IRQ_NONE},
     {1, COM2_DEFAULT_IRQ, IRQ_NONE},
     {2, COM3_DEFAULT_IRQ, IRQ_NONE},
     {3, COM4_DEFAULT_IRQ, IRQ_NONE}
+#endif
 };
 
 
