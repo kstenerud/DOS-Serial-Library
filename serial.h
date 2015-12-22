@@ -101,8 +101,11 @@ int  serial_read(int com, char* data, int len);
 /* Name:   serial_write() and serial_write_buffered()
  *
  * Desc:   Write data to the serial port.
- *         serial_write() will block until it has completely sent the data,
- *         while serial_write_buffered() will return immediately.
+ *         serial_write() will write the data directly to serial port and will
+ *         block until it has completely sent the data or handshaking has
+ *         stopped output transmission while serial_write_buffered() will copy
+ *         as much as possible data bytes to the transmit buffer and will return
+ *         immediately enabling asynchronous output.
  *
  * Params: int   com:         Communications port (COM_1, COM_2, COM_3, COM_4)
  *         char* data:        Pointer to data buffer

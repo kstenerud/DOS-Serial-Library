@@ -743,13 +743,9 @@ int serial_write_buffered(int comport, const char* data, int len)
 
     for(i=0;i < len ;i++)
     {
-        /* Wait until we can write */
+        /* stop when sent buffer is full */
         if(SER_TX_BUFFER_FULL(com))
-        {
-            UART_WRITE_INTERRUPT_ENABLE(com, UART_READ_INTERRUPT_ENABLE(com) | UART_IER_TX_HOLD_EMPTY);
-            while(SER_TX_BUFFER_FULL(com))
-            {}
-        }
+            break;
         /* Write 1 char */
         SER_TX_BUFFER_WRITE(com, data[i]);
     }
