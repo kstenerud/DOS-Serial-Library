@@ -617,12 +617,10 @@ int serial_open(int comport, long bps, int data_bits, char parity, int stop_bits
     UART_WRITE_INTERRUPT_ENABLE(com, 0);
 
     /* Auto-detect IRQ if we can */
-    if((rc=serial_find_irq(comport)) >= 0)
-        com->irq = rc;
-    else
-        com->irq = com->default_irq;
+    if((rc=serial_find_irq(comport)) < 0)
+        rc = com->default_irq;
 
-    if((rc=serial_set_irq(comport, com->irq)) != SER_SUCCESS)
+    if((rc=serial_set_irq(comport, rc)) != SER_SUCCESS)
         return rc;
 
     /* Turn off interrupts from PIC */
