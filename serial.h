@@ -110,8 +110,8 @@ int  serial_read(int com, char* data, int len);
  *
  * Return: number of bytes written or an error code
  */
-int  serial_write         (int com, char* data, int len);
-int  serial_write_buffered(int com, char* data, int len);
+int  serial_write         (int com, const char* data, int len);
+int  serial_write_buffered(int com, const char* data, int len);
 
 
 /* Name:   serial_set()

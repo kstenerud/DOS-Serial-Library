@@ -2,14 +2,16 @@
 #include <dos.h>
 #include "serial.h"
 
-#ifdef _MSC_VER
+#if defined( _MSC_VER ) || defined( __WATCOMC__ )
 #define Interrupt                   __interrupt
 #define Far                         __far
+#define Farpeekw(s, o)              (*((unsigned short Far*)(MK_FP((s), (o)))))
 #define CPU_DISABLE_INTERRUPTS()    __asm CLI
 #define CPU_ENABLE_INTERRUPTS()     __asm STI
 #else /* __BORLANDC__ */
 #define Interrupt                   interrupt
 #define Far                         far
+#define Farpeekw(s, o)              (*((unsigned short Far*)(MK_FP((s), (o)))))
 #define CPU_DISABLE_INTERRUPTS()    asm CLI
 #define CPU_ENABLE_INTERRUPTS()     asm STI
 #endif /* _MSC_VER */
@@ -610,7 +612,7 @@ int serial_open(int comport, long bps, int data_bits, char parity, int stop_bits
     SER_TX_BUFFER_INIT(com);
 
     /* look in bios tables (0040:0000 - 0040:0006) for com base addresses */
-    if(serial_set_base(comport, *((short Far*)(MK_FP(0x0040, comport<<1)))) != SER_SUCCESS)
+    if(serial_set_base(comport, Farpeekw(0x0040, comport<<1)) != SER_SUCCESS)
         return SER_ERR_NO_UART;
 
     /* Turn off interrupts from UART */
@@ -700,7 +702,7 @@ int serial_read(int comport, char* data, int len)
 }
 
 
-int serial_write(int comport, char* data, int len)
+int serial_write(int comport, const char* data, int len)
 {
     serial_struct* com = (serial_struct*)(g_comports + comport);
     int i;
@@ -727,7 +729,7 @@ int serial_write(int comport, char* data, int len)
     return i;
 }
 
-int serial_write_buffered(int comport, char* data, int len)
+int serial_write_buffered(int comport, const char* data, int len)
 {
     serial_struct* com = (serial_struct*)(g_comports + comport);
     int i;
