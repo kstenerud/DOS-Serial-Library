@@ -51,6 +51,7 @@
 #define SER_ERR_INVALID_FIFO_THRESHOLD  -13 /* User specified an invalid fifo threshold value */
 #define SER_ERR_NULL_PTR                -14 /* User specified a buffer address that was NULL */
 #define SER_ERR_IRQ_NOT_FOUND           -15 /* Could not find an IRQ for the specified COM port */
+#define SER_ERR_LOCK_MEM                -16 /* Could not lock memory in DPMI mode */
 
 
 /* Name:   serial_open()
@@ -101,8 +102,11 @@ int  serial_read(int com, char* data, int len);
 /* Name:   serial_write() and serial_write_buffered()
  *
  * Desc:   Write data to the serial port.
- *         serial_write() will block until it has completely sent the data,
- *         while serial_write_buffered() will return immediately.
+ *         serial_write() will write the data directly to serial port and will
+ *         block until it has completely sent the data or handshaking has
+ *         stopped output transmission while serial_write_buffered() will copy
+ *         as much as possible data bytes to the transmit buffer and will return
+ *         immediately enabling asynchronous output.
  *
  * Params: int   com:         Communications port (COM_1, COM_2, COM_3, COM_4)
  *         char* data:        Pointer to data buffer
@@ -110,8 +114,8 @@ int  serial_read(int com, char* data, int len);
  *
  * Return: number of bytes written or an error code
  */
-int  serial_write         (int com, char* data, int len);
-int  serial_write_buffered(int com, char* data, int len);
+int  serial_write         (int com, const char* data, int len);
+int  serial_write_buffered(int com, const char* data, int len);
 
 
 /* Name:   serial_set()
@@ -155,6 +159,8 @@ int  serial_set_irq           (int com, int base);
 int serial_set_rts(int comport, int rts);
 int serial_set_dtr(int comport, int dtr);
 
+int serial_set_mcr(int comport, int mcr);
+
 
 /* serial_get_xxx() functions.  These return the same types as are supplied
  * to serial_set().  The returned type may be negative, in which case it
@@ -173,5 +179,17 @@ int serial_get_rts(int comport);
 int serial_get_dtr(int comport);
 int serial_get_cts(int comport);
 int serial_get_dsr(int comport);
+
+int serial_get_mcr(int comport);
+int serial_get_msr(int comport);
+int serial_get_lsr(int comport);
+
+
+/* get number of bytes or discard data in TX/RX buffers
+ */
+int serial_get_tx_buffered(int comport);
+int serial_get_rx_buffered(int comport);
+int serial_clear_tx_buffer(int comport);
+int serial_clear_rx_buffer(int comport);
 
 #endif
