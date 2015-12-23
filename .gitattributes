@@ -1,0 +1,15 @@
+# Default
+*         text=auto
+
+# These files are text and should be normalized (convert CRLF => LF)
+*.c       text
+*.h       text
+*.md      text
+
+# Text files with fixed EOL requirements
+*.bat     text eol=crlf
+*.sh      text eol=lf
+
+# Binary files
+*.a       binary
+*.lib     binary
