@@ -296,6 +296,8 @@ static unsigned char PIC_READ_IRR(unsigned int port){PIC_WRITE_OCW3(port, PIC_RR
 #define UART_BPS_DIVISOR_57600         2
 #define UART_BPS_DIVISOR_115200        1
 
+/* FIFO size */
+#define UART_FIFO_SIZE_IN_BYTES       16
 
 /* ======================================================================== */
 /* ==================== PROTOTYPES, TYPEDEFS & GLOBALS ==================== */
@@ -456,7 +458,7 @@ static void Interrupt com_general_isr(void)
                         break;
                     /* UART is empty */
                     case UART_IIR_TX_HOLD_EMPTY:
-                        while(com->tx_flow_on && UART_READ_LINE_STATUS(com) & UART_LSR_TX_HOLD_EMPTY && !SER_TX_BUFFER_EMPTY(com))
+                        for (int cnt=0; cnt<UART_FIFO_SIZE_IN_BYTES && com->tx_flow_on && !SER_TX_BUFFER_EMPTY(com); cnt++)
                             UART_WRITE_DATA(com, SER_TX_BUFFER_READ(com));
                         if(SER_TX_BUFFER_EMPTY(com) || !com->tx_flow_on)
                             UART_WRITE_INTERRUPT_ENABLE(com, UART_READ_INTERRUPT_ENABLE(com) & ~UART_IER_TX_HOLD_EMPTY);
