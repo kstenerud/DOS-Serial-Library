@@ -458,11 +458,14 @@ static void Interrupt com_general_isr(void)
                         break;
                     /* UART is empty */
                     case UART_IIR_TX_HOLD_EMPTY:
-                        for (int cnt=0; cnt<UART_FIFO_SIZE_IN_BYTES && com->tx_flow_on && !SER_TX_BUFFER_EMPTY(com); cnt++)
+                    {
+                        int cnt;
+                        for (cnt=0; cnt<UART_FIFO_SIZE_IN_BYTES && com->tx_flow_on && !SER_TX_BUFFER_EMPTY(com); cnt++)
                             UART_WRITE_DATA(com, SER_TX_BUFFER_READ(com));
                         if(SER_TX_BUFFER_EMPTY(com) || !com->tx_flow_on)
                             UART_WRITE_INTERRUPT_ENABLE(com, UART_READ_INTERRUPT_ENABLE(com) & ~UART_IER_TX_HOLD_EMPTY);
                         break;
+                    }
                 }
             }
         }
