@@ -1606,7 +1606,7 @@ int serial_get_rx_buffered(int comport)
         return SER_ERR_NOT_OPEN;
 
     CPU_DISABLE_INTERRUPTS();
-    count = SER_TX_BUFFER_CURRENT(com);
+    count = SER_RX_BUFFER_CURRENT(com);
     CPU_ENABLE_INTERRUPTS();
 
     return count;
