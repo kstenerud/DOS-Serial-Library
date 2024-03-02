@@ -861,6 +861,21 @@ static void serial_free_irq(int comport)
 /* ======================== BASIC SERIAL ROUTINES ========================= */
 /* ======================================================================== */
 
+int serial_is_port_open(int portnum)
+{
+    if (portnum < COM_MIN || portnum > COM_MAX)
+        return SER_ERR_INVALID_COMPORT; // Error: Invalid port number
+
+    serial_struct* com = (serial_struct*)(g_comports + portnum);
+
+    if (com->open == 1)
+    {
+        return SER_ERR_ALREADY_OPEN;    // Port is open
+    } else {
+        return SER_ERR_NOT_OPEN;        // Port is not open
+    }
+}
+
 int serial_open(int comport, long bps, int data_bits, char parity, int stop_bits, int handshaking)
 {
     serial_struct* com = (serial_struct*)(g_comports + comport);
@@ -1221,6 +1236,13 @@ int serial_set_data(int comport, int data_bits)
 
 int serial_set_parity(int comport, char parity)
 {
+    /*  valid values for parity:
+        PARITY_NONE   'n'  none
+        PARITY_EVEN   'e'  even
+        PARITY_ODD    'o'  odd
+        PARITY_MARK   'm'  mark
+        PARITY_SPACE  's'  space
+    */
     serial_struct* com = (serial_struct*)(g_comports + comport);
 
     if(comport < COM_MIN || comport > COM_MAX)
@@ -1230,19 +1252,19 @@ int serial_set_parity(int comport, char parity)
 
     switch(parity)
     {
-        case 'n':
+        case PARITY_NONE:
             UART_WRITE_LINE_CONTROL(com, (UART_READ_LINE_CONTROL(com) & ~UART_PARITY_MASK) | UART_PARITY_NONE);
             return SER_SUCCESS;
-        case 'e':
+        case PARITY_EVEN:
             UART_WRITE_LINE_CONTROL(com, (UART_READ_LINE_CONTROL(com) & ~UART_PARITY_MASK) | UART_PARITY_EVEN);
             return SER_SUCCESS;
-        case 'o':
+        case PARITY_ODD:
             UART_WRITE_LINE_CONTROL(com, (UART_READ_LINE_CONTROL(com) & ~UART_PARITY_MASK) | UART_PARITY_ODD);
             return SER_SUCCESS;
-        case 'm':
+        case PARITY_MARK:
             UART_WRITE_LINE_CONTROL(com, (UART_READ_LINE_CONTROL(com) & ~UART_PARITY_MASK) | UART_PARITY_MARK);
             return SER_SUCCESS;
-        case 's':
+        case PARITY_SPACE:
             UART_WRITE_LINE_CONTROL(com, (UART_READ_LINE_CONTROL(com) & ~UART_PARITY_MASK) | UART_PARITY_SPACE);
             return SER_SUCCESS;
     }
@@ -1444,6 +1466,13 @@ int serial_get_data(int comport)
 
 char serial_get_parity(int comport)
 {
+    /*  valid return values:
+        PARITY_NONE   'n'  none
+        PARITY_EVEN   'e'  even
+        PARITY_ODD    'o'  odd
+        PARITY_MARK   'm'  mark
+        PARITY_SPACE  's'  space
+    */
     serial_struct* com = (serial_struct*)(g_comports + comport);
 
     if(comport < COM_MIN || comport > COM_MAX)
@@ -1454,15 +1483,15 @@ char serial_get_parity(int comport)
     switch(UART_READ_LINE_CONTROL(com) & UART_PARITY_MASK)
     {
         case UART_PARITY_NONE:
-            return 'n';
+            return PARITY_NONE;
         case UART_PARITY_EVEN:
-            return 'e';
+            return PARITY_EVEN;
         case UART_PARITY_ODD:
-            return 'o';
+            return PARITY_ODD;
         case UART_PARITY_MARK:
-            return 'm';
+            return PARITY_MARK;
         case UART_PARITY_SPACE:
-            return 's';
+            return PARITY_SPACE;
     }
     return SER_ERR_INVALID_PARITY;
 }
@@ -1644,4 +1673,34 @@ int serial_clear_rx_buffer(int comport)
     CPU_ENABLE_INTERRUPTS();
 
     return SER_SUCCESS;
+}
+
+
+/* ======================================================================== */
+/* ============================ OTHER ROUTINES ============================ */
+/* ======================================================================== */
+
+
+char* GetErrorText (int err_num)
+{
+    switch (err_num)
+    {
+        case SER_SUCCESS:                    return "Function completed successfully";                  break;
+        case SER_ERR_NOT_OPEN:               return "The specified COM port is not opened";             break;
+        case SER_ERR_ALREADY_OPEN:           return "The specified COM port is already opened";         break;
+        case SER_ERR_NO_UART:                return "Could not find a UART for this COM port";          break;
+        case SER_ERR_INVALID_COMPORT:        return "User specified an invalid COM port";               break;
+        case SER_ERR_INVALID_BASE:           return "User specified an invalid base address";           break;
+        case SER_ERR_INVALID_IRQ:            return "User specified an invalid IRQ number";             break;
+        case SER_ERR_INVALID_BPS:            return "User specified an invalid BPS rate";               break;
+        case SER_ERR_INVALID_DATA_BITS:      return "User specified an invalid number of data bits";    break;
+        case SER_ERR_INVALID_PARITY:         return "User specified an invalid parity type";            break;
+        case SER_ERR_INVALID_STOP_BITS:      return "User specified an invalid number of stop bits";    break;
+        case SER_ERR_INVALID_HANDSHAKING:    return "User specified an invalid handshaking type";       break;
+        case SER_ERR_INVALID_FIFO_THRESHOLD: return "User specified an invalid fifo threshold value";   break;
+        case SER_ERR_NULL_PTR:               return "User specified a buffer address that was NULL";    break;
+        case SER_ERR_IRQ_NOT_FOUND:          return "Could not find an IRQ for the specified COM port"; break;
+        case SER_ERR_LOCK_MEM:               return "Could not lock memory in DPMI mode";               break;
+        case SER_ERR_UNKNOWN: default:       return "An unknown error occured";
+    }
 }
