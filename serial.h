@@ -1,15 +1,15 @@
 /* Serial Library 1.4 (22-Jun-2000) (c) 1998 Karl Stenerud
- *  
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be included in
  * all copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -34,6 +34,13 @@
 #define SER_HANDSHAKING_RTSCTS          2
 #define SER_HANDSHAKING_DTRDSR          3
 
+/* Parity defines */
+#define PARITY_NONE  'n'
+#define PARITY_EVEN  'e'
+#define PARITY_ODD   'o'
+#define PARITY_MARK  'm'
+#define PARITY_SPACE 's'
+
 /* Error Codes */
 #define SER_SUCCESS                     0   /* Function completed successfully */
 #define SER_ERR_UNKNOWN                 -1  /* An unknown error occured */
@@ -52,6 +59,30 @@
 #define SER_ERR_NULL_PTR                -14 /* User specified a buffer address that was NULL */
 #define SER_ERR_IRQ_NOT_FOUND           -15 /* Could not find an IRQ for the specified COM port */
 #define SER_ERR_LOCK_MEM                -16 /* Could not lock memory in DPMI mode */
+
+
+/* Name:   GetErrorText()
+ *
+ * Desc:   Return the text description of a numeric error code.
+ *
+ * Params: int err_num:       The error code.
+ *
+ * Return: The text description of the error code passed in.
+ */
+char* GetErrorText (int err_num);
+
+
+/* Name:   serial_is_port_open()
+ *
+ * Desc:   Determines whether or not a particular COM port is open.
+ *
+ * Params: int com:           Communications port (COM_1, COM_2, COM_3, COM_4)
+ *
+ * Return: SER_ERR_ALREADY_OPEN     port is open
+ *         SER_ERR_NOT_OPEN         port is not open
+ *         SER_ERR_INVALID_COMPORT  invalid port number was passed in
+ */
+int serial_is_port_open(int com);
 
 
 /* Name:   serial_open()
